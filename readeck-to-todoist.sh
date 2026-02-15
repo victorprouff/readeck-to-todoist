@@ -3,7 +3,8 @@
 #######################################
 # Script de synchronisation Readeck -> Todoist
 # Récupère les articles non archivés avec le label "en vrac"
-# et les ajoute comme tâches dans Todoist
+# Les ajoute comme tâches dans Todoist
+# Archive les articles sur Readeck après ajout réussi
 #######################################
 
 set -euo pipefail
@@ -134,6 +135,37 @@ fetch_readeck_articles() {
     echo "$body"
 }
 
+# Archivage d'un article sur Readeck
+archive_readeck_article() {
+    local bookmark_id="$1"
+    local title="$2"
+    
+    log_info "Archivage de l'article sur Readeck: $title"
+    
+    local response
+    response=$(curl -s -w "\n%{http_code}" \
+        -X PATCH \
+        -H "Authorization: Bearer ${READECK_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -d "{\"is_archived\": true}" \
+        "${READECK_API_URL}/bookmarks/${bookmark_id}")
+    
+    local http_code
+    http_code=$(echo "$response" | tail -n1)
+    local body
+    body=$(echo "$response" | sed '$d')
+    
+    if [[ "$http_code" -eq 200 ]]; then
+        log_info "✓ Article archivé sur Readeck"
+        return 0
+    else
+        log_error "✗ Erreur lors de l'archivage sur Readeck (HTTP $http_code)"
+        log_error "Réponse: $body"
+        return 1
+    fi
+}
+
 # Ajout d'une tâche dans Todoist
 add_todoist_task() {
     local title="$1"
@@ -220,6 +252,7 @@ main() {
     # Traitement de chaque article
     local success_count=0
     local error_count=0
+    local archived_count=0
     
     echo "$articles" | jq -c '.[]' | while IFS= read -r article; do
         local title
@@ -243,6 +276,13 @@ main() {
         # Ajout dans Todoist
         if add_todoist_task "$title" "$url" "$bookmark_id"; then
             ((success_count++)) || true
+            
+            # Archivage sur Readeck si l'ajout dans Todoist a réussi
+            if archive_readeck_article "$bookmark_id" "$title"; then
+                ((archived_count++)) || true
+            else
+                log_warn "L'article a été ajouté à Todoist mais n'a pas pu être archivé sur Readeck"
+            fi
         else
             ((error_count++)) || true
         fi
@@ -253,6 +293,7 @@ main() {
     
     log_info "=== Synchronisation terminée ==="
     log_info "Articles traités avec succès: $success_count"
+    log_info "Articles archivés sur Readeck: $archived_count"
     if [[ $error_count -gt 0 ]]; then
         log_warn "Articles en erreur: $error_count"
     fi
