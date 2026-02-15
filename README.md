@@ -31,10 +31,13 @@ chmod +x readeck-to-todoist.sh
 
 ### Variables d'environnement
 
-Le script nécessite deux variables d'environnement :
+Le script nécessite cinq variables d'environnement :
 
-1. **READECK_API_TOKEN** : Token d'authentification Bearer pour l'API Readeck
-2. **TODOIST_API_TOKEN** : Token d'authentification pour l'API Todoist
+1. **READECK_API_URL** : URL de base de votre instance Readeck (ex: `https://readeck.example.com/api`)
+2. **READECK_API_TOKEN** : Token d'authentification Bearer pour l'API Readeck
+3. **TODOIST_API_TOKEN** : Token d'authentification pour l'API Todoist
+4. **TODOIST_PROJECT_ID** : ID du projet Todoist (format v2, ex: `6X6Hrfezff5rthWCXH`)
+5. **TODOIST_SECTION_ID** : ID de la section Todoist (format v2, ex: `HesrhXfQ9trhXV9`)
 
 ### Obtenir le token Readeck
 
@@ -60,8 +63,11 @@ sudo nano /etc/environment
 
 Ajoutez ces lignes :
 ```
+READECK_API_URL="https://readeck.example.com/api"
 READECK_API_TOKEN="votre_token_readeck_ici"
 TODOIST_API_TOKEN="votre_token_todoist_ici"
+TODOIST_PROJECT_ID="project_id"
+TODOIST_SECTION_ID="section_id"
 ```
 
 Rechargez l'environnement :
@@ -73,8 +79,11 @@ source /etc/environment
 
 Ajoutez dans `~/.bashrc` ou `~/.profile` :
 ```bash
+export READECK_API_URL="https://readeck.example.com/api"
 export READECK_API_TOKEN="votre_token_readeck_ici"
 export TODOIST_API_TOKEN="votre_token_todoist_ici"
+export TODOIST_PROJECT_ID="project_id"
+export TODOIST_SECTION_ID="section_id"
 ```
 
 Rechargez :
@@ -139,7 +148,8 @@ tail -f /var/log/readeck-todoist.log
 2. Pour chaque article trouvé :
    - Extrait le titre et l'URL
    - Crée une tâche Todoist avec le format markdown `[Titre](URL)`
-   - Ajoute la tâche dans le projet ID `2332182173`, section ID `179438112`
+   - Ajoute la tâche dans le projet ID `657882173`, section ID `4567890987`
+   - Utilise l'API Todoist REST v1 (la v2 est dépréciée depuis février 2026)
 
 3. Le script affiche des logs colorés :
    - 🟢 INFO : opérations normales
@@ -157,6 +167,22 @@ echo $TODOIST_API_TOKEN
 ```
 
 Si vides, redéfinissez-les selon la section Configuration.
+
+### Erreur "jq: parse error: Invalid numeric literal"
+
+Cette erreur peut survenir si :
+1. L'API Readeck retourne une réponse vide (aucun article trouvé)
+2. Le label est mal encodé dans l'URL
+3. Le token d'authentification est invalide
+
+**Note importante sur les labels :** L'API Readeck nécessite que les labels avec espaces soient encodés avec des guillemets : `labels=%22en+vrac%22` et non `labels=en%20vrac`.
+
+Pour vérifier manuellement :
+```bash
+curl -X GET "https://readeck.example.com/api/bookmarks?labels=%22en+vrac%22&is_archived=false" \
+  -H "Authorization: Bearer ${READECK_API_TOKEN}" \
+  -H 'accept: application/json'
+```
 
 ### Erreur "jq: command not found"
 

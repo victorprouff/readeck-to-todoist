@@ -12,13 +12,12 @@ set -euo pipefail
 # set -x
 
 # Configuration
-READECK_API_URL="https://readeck.victorprouff.fr/api"
-TODOIST_PROJECT_ID="2332182173"
-TODOIST_SECTION_ID="179438112"
-
-# Variables d'environnement requises
+# Ces valeurs doivent être définies comme variables d'environnement :
+# READECK_API_URL : URL de base de votre instance Readeck
 # READECK_API_TOKEN : Token Bearer pour l'API Readeck
 # TODOIST_API_TOKEN : Token pour l'API Todoist
+# TODOIST_PROJECT_ID : ID du projet Todoist
+# TODOIST_SECTION_ID : ID de la section Todoist
 
 # Couleurs pour les logs
 RED='\033[0;31m'
@@ -41,13 +40,35 @@ log_error() {
 
 # Vérification des variables d'environnement
 check_env_vars() {
+    local missing_vars=0
+    
+    if [[ -z "${READECK_API_URL:-}" ]]; then
+        log_error "La variable d'environnement READECK_API_URL n'est pas définie"
+        missing_vars=1
+    fi
+    
     if [[ -z "${READECK_API_TOKEN:-}" ]]; then
         log_error "La variable d'environnement READECK_API_TOKEN n'est pas définie"
-        exit 1
+        missing_vars=1
     fi
     
     if [[ -z "${TODOIST_API_TOKEN:-}" ]]; then
         log_error "La variable d'environnement TODOIST_API_TOKEN n'est pas définie"
+        missing_vars=1
+    fi
+    
+    if [[ -z "${TODOIST_PROJECT_ID:-}" ]]; then
+        log_error "La variable d'environnement TODOIST_PROJECT_ID n'est pas définie"
+        missing_vars=1
+    fi
+    
+    if [[ -z "${TODOIST_SECTION_ID:-}" ]]; then
+        log_error "La variable d'environnement TODOIST_SECTION_ID n'est pas définie"
+        missing_vars=1
+    fi
+    
+    if [[ $missing_vars -eq 1 ]]; then
+        log_error "Veuillez définir toutes les variables d'environnement requises"
         exit 1
     fi
 }
@@ -124,17 +145,28 @@ add_todoist_task() {
     
     log_info "Ajout de la tâche: $title"
     
+    # Générer un UUID pour la commande et un temp_id
+    local uuid
+    uuid=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "$(date +%s)-$$-$RANDOM")
+    local temp_id
+    temp_id=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "temp-$(date +%s)-$$-$RANDOM")
+    
     local response
     response=$(curl -s -w "\n%{http_code}" \
         -X POST \
         -H "Authorization: Bearer ${TODOIST_API_TOKEN}" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"content\": $(echo "$content" | jq -Rs .),
-            \"project_id\": \"${TODOIST_PROJECT_ID}\",
-            \"section_id\": \"${TODOIST_SECTION_ID}\"
-        }" \
-        "https://api.todoist.com/rest/v2/tasks")
+        -H "Content-Type: application/x-www-form-urlencoded" \
+        --data-urlencode "commands=[{
+            \"type\": \"item_add\",
+            \"temp_id\": \"${temp_id}\",
+            \"uuid\": \"${uuid}\",
+            \"args\": {
+                \"content\": $(echo "$content" | jq -Rs .),
+                \"project_id\": \"${TODOIST_PROJECT_ID}\",
+                \"section_id\": \"${TODOIST_SECTION_ID}\"
+            }
+        }]" \
+        "https://api.todoist.com/api/v1/sync")
     
     local http_code
     http_code=$(echo "$response" | tail -n1)
@@ -142,8 +174,18 @@ add_todoist_task() {
     body=$(echo "$response" | sed '$d')
     
     if [[ "$http_code" -eq 200 ]]; then
-        log_info "✓ Tâche ajoutée avec succès"
-        return 0
+        # Vérifier le statut de la commande dans la réponse
+        local sync_status
+        sync_status=$(echo "$body" | jq -r ".sync_status.\"${uuid}\"" 2>/dev/null || echo "error")
+        
+        if [[ "$sync_status" == "ok" ]]; then
+            log_info "✓ Tâche ajoutée avec succès"
+            return 0
+        else
+            log_error "✗ Erreur dans la réponse Todoist: $sync_status"
+            log_error "Réponse: $body"
+            return 1
+        fi
     else
         log_error "✗ Erreur lors de l'ajout de la tâche (HTTP $http_code)"
         log_error "Réponse: $body"
