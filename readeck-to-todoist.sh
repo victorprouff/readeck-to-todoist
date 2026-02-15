@@ -8,6 +8,9 @@
 
 set -euo pipefail
 
+# Mode debug (décommentez pour activer)
+# set -x
+
 # Configuration
 READECK_API_URL="https://readeck.victorprouff.fr/api"
 TODOIST_PROJECT_ID="2332182173"
@@ -76,7 +79,7 @@ fetch_readeck_articles() {
     response=$(curl -s -w "\n%{http_code}" \
         -H "Authorization: Bearer ${READECK_API_TOKEN}" \
         -H "Accept: application/json" \
-        "${READECK_API_URL}/bookmarks?is_archived=false&labels=en%20vrac")
+        "${READECK_API_URL}/bookmarks?labels=%22en+vrac%22&is_archived=false")
     
     local http_code
     http_code=$(echo "$response" | tail -n1)
@@ -86,6 +89,19 @@ fetch_readeck_articles() {
     if [[ "$http_code" -ne 200 ]]; then
         log_error "Erreur lors de la récupération des articles (HTTP $http_code)"
         log_error "Réponse: $body"
+        exit 1
+    fi
+    
+    # Vérifier que la réponse n'est pas vide
+    if [[ -z "$body" ]]; then
+        log_error "Réponse vide de l'API Readeck"
+        exit 1
+    fi
+    
+    # Vérifier que c'est du JSON valide
+    if ! echo "$body" | jq empty 2>/dev/null; then
+        log_error "Réponse JSON invalide de Readeck"
+        log_error "Réponse brute: $body"
         exit 1
     fi
     
