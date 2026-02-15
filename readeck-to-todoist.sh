@@ -73,7 +73,7 @@ check_dependencies() {
 
 # Récupération des articles depuis Readeck
 fetch_readeck_articles() {
-    log_info "Récupération des articles depuis Readeck..."
+    log_info "Récupération des articles depuis Readeck..." >&2
     
     local response
     response=$(curl -s -w "\n%{http_code}" \
@@ -86,25 +86,30 @@ fetch_readeck_articles() {
     local body
     body=$(echo "$response" | sed '$d')
     
+    # Logs envoyés sur stderr pour ne pas polluer stdout
+    log_info "Code HTTP reçu: $http_code" >&2
+    log_info "Longueur de la réponse: ${#body} caractères" >&2
+    
     if [[ "$http_code" -ne 200 ]]; then
-        log_error "Erreur lors de la récupération des articles (HTTP $http_code)"
-        log_error "Réponse: $body"
+        log_error "Erreur lors de la récupération des articles (HTTP $http_code)" >&2
+        log_error "Réponse: $body" >&2
         exit 1
     fi
     
     # Vérifier que la réponse n'est pas vide
     if [[ -z "$body" ]]; then
-        log_error "Réponse vide de l'API Readeck"
+        log_error "Réponse vide de l'API Readeck" >&2
         exit 1
     fi
     
     # Vérifier que c'est du JSON valide
     if ! echo "$body" | jq empty 2>/dev/null; then
-        log_error "Réponse JSON invalide de Readeck"
-        log_error "Réponse brute: $body"
+        log_error "Réponse JSON invalide de Readeck" >&2
+        log_error "Réponse brute: ${body:0:500}..." >&2
         exit 1
     fi
     
+    # IMPORTANT: Retourner UNIQUEMENT le body sur stdout
     echo "$body"
 }
 
@@ -156,6 +161,8 @@ main() {
     # Récupération des articles
     local articles
     articles=$(fetch_readeck_articles)
+    
+    log_info "Articles récupérés avec succès"
     
     # Comptage des articles
     local article_count
