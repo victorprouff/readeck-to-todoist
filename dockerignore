@@ -1,0 +1,7 @@
+README.md
+.git
+.gitignore
+*.example
+test-*.sh
+debug-*.sh
+convert-*.sh

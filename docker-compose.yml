@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  readeck-todoist-sync:
+    build: .
+    container_name: readeck-todoist-sync
+    restart: unless-stopped
+    environment:
+      - READECK_API_URL=${READECK_API_URL}
+      - READECK_API_TOKEN=${READECK_API_TOKEN}
+      - TODOIST_API_TOKEN=${TODOIST_API_TOKEN}
+      - TODOIST_PROJECT_ID=${TODOIST_PROJECT_ID}
+      - TODOIST_SECTION_ID=${TODOIST_SECTION_ID}
+    volumes:
+      # Optionnel : persister les logs
+      - ./logs:/var/log/readeck-sync
+    # Optionnel : exposer les logs via un volume nommé
+    # volumes:
+    #   - sync-logs:/var/log/readeck-sync
+
+# Optionnel : volume nommé pour les logs
+# volumes:
+#   sync-logs:
