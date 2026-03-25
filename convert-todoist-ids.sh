@@ -22,7 +22,7 @@ fi
 
 # IDs à convertir
 OLD_PROJECT_ID="2332182173"
-OLD_SECTION_ID="179438112"
+OLD_SECTION_ID="181074705"
 
 echo "Conversion des IDs..."
 echo ""

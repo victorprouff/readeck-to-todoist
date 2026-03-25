@@ -7,193 +7,63 @@ Script bash pour synchroniser automatiquement les articles non archivés avec le
 - `curl` (généralement préinstallé)
 - `jq` pour le parsing JSON
 
-Installation de jq sur Debian/Ubuntu :
-```bash
-sudo apt-get update
-sudo apt-get install -y jq
-```
+## Déploiement avec Dokploy
 
-## Installation
+### Architecture
 
-1. Téléchargez le script sur votre serveur :
-```bash
-wget https://votre-serveur.com/readeck-to-todoist.sh
-# OU
-curl -O https://votre-serveur.com/readeck-to-todoist.sh
-```
-
-2. Rendez le script exécutable :
-```bash
-chmod +x readeck-to-todoist.sh
-```
-
-## Configuration
+Le conteneur tourne en permanence (`sleep infinity` + `restart: unless-stopped`). Dokploy utilise `docker exec` pour déclencher les scripts selon le planning configuré.
 
 ### Variables d'environnement
 
-Le script nécessite cinq variables d'environnement :
+Configurer dans Dokploy :
 
-1. **READECK_API_URL** : URL de base de votre instance Readeck (ex: `https://readeck.example.com/api`)
-2. **READECK_API_TOKEN** : Token d'authentification Bearer pour l'API Readeck
-3. **TODOIST_API_TOKEN** : Token d'authentification pour l'API Todoist
-4. **TODOIST_PROJECT_ID** : ID du projet Todoist (format v2, ex: `6X6Hrfezff5rthWCXH`)
-5. **TODOIST_SECTION_ID** : ID de la section Todoist (format v2, ex: `HesrhXfQ9trhXV9`)
+| Variable | Description |
+|---|---|
+| `READECK_API_URL` | URL de base de l'instance Readeck (ex: `https://readeck.example.com/api`) |
+| `READECK_API_TOKEN` | Token Bearer pour l'API Readeck |
+| `TODOIST_API_TOKEN` | Token pour l'API Todoist |
+| `TODOIST_PROJECT_ID` | ID du projet Todoist (ex: `6X6Hrfezff5rthWCXH`) |
+| `TODOIST_SECTION_ID` | ID de la section Todoist (ex: `HesrhXfQ9trhXV9`) |
 
-### Obtenir le token Readeck
+### Crons Dokploy
 
-1. Connectez-vous à votre instance Readeck : https://readeck.victorprouff.fr
-2. Allez dans les paramètres de votre compte
-3. Générez un token API
-4. Copiez le token
+Deux crons à configurer, tous les deux avec le container `readeck-todoist-sync` :
 
-### Obtenir le token Todoist
+| Commande | Rôle |
+|---|---|
+| `/app/readeck-to-todoist.sh` | Synchronisation principale |
+| `/app/debug-readeck.sh` | Vérification de la connexion Readeck sans synchroniser |
 
-1. Allez sur https://todoist.com/app/settings/integrations
-2. Sous "API token", copiez votre token
-3. Ou générez un nouveau token si nécessaire
+## Fonctionnement du script principal
 
-### Définir les variables d'environnement
-
-#### Option 1 : Variables système (recommandé pour cron)
-
-Ajoutez les variables dans `/etc/environment` :
-```bash
-sudo nano /etc/environment
-```
-
-Ajoutez ces lignes :
-```
-READECK_API_URL="https://readeck.example.com/api"
-READECK_API_TOKEN="votre_token_readeck_ici"
-TODOIST_API_TOKEN="votre_token_todoist_ici"
-TODOIST_PROJECT_ID="project_id"
-TODOIST_SECTION_ID="section_id"
-```
-
-Rechargez l'environnement :
-```bash
-source /etc/environment
-```
-
-#### Option 2 : Profile utilisateur
-
-Ajoutez dans `~/.bashrc` ou `~/.profile` :
-```bash
-export READECK_API_URL="https://readeck.example.com/api"
-export READECK_API_TOKEN="votre_token_readeck_ici"
-export TODOIST_API_TOKEN="votre_token_todoist_ici"
-export TODOIST_PROJECT_ID="project_id"
-export TODOIST_SECTION_ID="section_id"
-```
-
-Rechargez :
-```bash
-source ~/.bashrc
-```
-
-## Utilisation
-
-### Exécution manuelle
-
-```bash
-./readeck-to-todoist.sh
-```
-
-### Configuration du cron
-
-Pour exécuter le script automatiquement, utilisez cron.
-
-1. Éditez le crontab :
-```bash
-crontab -e
-```
-
-2. Ajoutez une ligne selon la fréquence souhaitée :
-
-```bash
-# Toutes les heures
-0 * * * * /chemin/vers/readeck-to-todoist.sh >> /var/log/readeck-todoist.log 2>&1
-
-# Tous les jours à 9h00
-0 9 * * * /chemin/vers/readeck-to-todoist.sh >> /var/log/readeck-todoist.log 2>&1
-
-# Toutes les 6 heures
-0 */6 * * * /chemin/vers/readeck-to-todoist.sh >> /var/log/readeck-todoist.log 2>&1
-
-# Toutes les 30 minutes
-*/30 * * * * /chemin/vers/readeck-to-todoist.sh >> /var/log/readeck-todoist.log 2>&1
-```
-
-3. **Important pour cron** : Les variables d'environnement doivent être définies dans le crontab si elles ne sont pas dans `/etc/environment` :
-
-```bash
-READECK_API_TOKEN=votre_token_readeck
-TODOIST_API_TOKEN=votre_token_todoist
-
-0 * * * * /chemin/vers/readeck-to-todoist.sh >> /var/log/readeck-todoist.log 2>&1
-```
-
-### Vérifier les logs
-
-```bash
-tail -f /var/log/readeck-todoist.log
-```
-
-## Fonctionnement du script
-
-1. Le script récupère tous les articles Readeck avec :
+1. Récupère tous les articles Readeck avec :
    - `is_archived=false` (non archivés)
    - `labels="en vrac"` (avec le label "en vrac")
 
 2. Pour chaque article trouvé :
    - Extrait le titre et l'URL
-   - Crée une tâche Todoist avec le format markdown `[Titre](URL)`
-   - Ajoute la tâche dans le projet ID `657882173`, section ID `4567890987`
-   - Utilise l'API Todoist REST v1 (la v2 est dépréciée depuis février 2026)
+   - Crée une tâche Todoist au format markdown `[Titre](URL)`
+   - Ajoute la tâche dans le projet/section configurés
 
-3. Le script affiche des logs colorés :
+3. Logs colorés :
    - 🟢 INFO : opérations normales
    - 🟡 WARN : avertissements
    - 🔴 ERROR : erreurs
 
 ## Dépannage
 
-### Le script ne trouve pas les tokens
-
-Vérifiez que les variables sont bien définies :
-```bash
-echo $READECK_API_TOKEN
-echo $TODOIST_API_TOKEN
-```
-
-Si vides, redéfinissez-les selon la section Configuration.
-
 ### Erreur "jq: parse error: Invalid numeric literal"
 
-Cette erreur peut survenir si :
+Causes possibles :
 1. L'API Readeck retourne une réponse vide (aucun article trouvé)
 2. Le label est mal encodé dans l'URL
 3. Le token d'authentification est invalide
 
-**Note importante sur les labels :** L'API Readeck nécessite que les labels avec espaces soient encodés avec des guillemets : `labels=%22en+vrac%22` et non `labels=en%20vrac`.
-
-Pour vérifier manuellement :
-```bash
-curl -X GET "https://readeck.example.com/api/bookmarks?labels=%22en+vrac%22&is_archived=false" \
-  -H "Authorization: Bearer ${READECK_API_TOKEN}" \
-  -H 'accept: application/json'
-```
-
-### Erreur "jq: command not found"
-
-Installez jq :
-```bash
-sudo apt-get install -y jq
-```
+**Note :** L'API Readeck nécessite que les labels avec espaces soient encodés avec des guillemets : `labels=%22en+vrac%22`.
 
 ### Erreur HTTP 401 (Unauthorized)
 
-Vérifiez que vos tokens sont corrects et valides.
+Vérifiez que les tokens sont corrects et valides.
 
 ### Erreur HTTP 404
 
@@ -205,20 +75,12 @@ Vérifiez que :
 - Le label est bien "en vrac" (sensible à la casse)
 - Il existe des articles non archivés avec ce label dans Readeck
 
-## Évolutions futures
-
-- ✅ Synchronisation Readeck → Todoist
-- 🔄 Archivage automatique des articles traités dans Readeck (à venir)
-- 📊 Rapport détaillé par email (à venir)
-
 ## Structure du code
 
-Le script est organisé en fonctions :
-- `check_env_vars()` : Vérifie les variables d'environnement
-- `check_dependencies()` : Vérifie les dépendances système
-- `fetch_readeck_articles()` : Récupère les articles depuis Readeck
-- `add_todoist_task()` : Ajoute une tâche dans Todoist
-- `main()` : Fonction principale qui orchestre le tout
+- `readeck-to-todoist.sh` : script principal de synchronisation
+- `debug-readeck.sh` : script de vérification de l'API Readeck
+- `entrypoint.sh` : point d'entrée du conteneur
+- `docker-compose.yml` : configuration du service
 
 ## Licence
 
