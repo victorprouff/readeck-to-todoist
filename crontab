@@ -1,6 +1,0 @@
-# Exécution tous les mardis à 19h (Europe/Paris)
-# Format: minute heure jour_du_mois mois jour_de_la_semaine commande
-# jour_de_la_semaine: 0=dimanche, 1=lundi, 2=mardi, etc.
-0 19 * * 2 /app/readeck-to-todoist.sh >> /var/log/readeck-sync/sync.log 2>&1
-
-# Ligne vide requise à la fin du fichier crontab
