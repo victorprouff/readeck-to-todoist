@@ -33,14 +33,5 @@ echo "✓ Configuration valide"
 echo ""
 
 # Affichage de la planification cron
-echo "Planification du cron:"
-cat /etc/crontabs/root
-echo ""
-
-# Exportation des variables d'environnement pour cron
-# Cron ne charge pas automatiquement les variables d'environnement
-env | grep -E '^(READECK_|TODOIST_)' > /etc/environment
-
-echo "Démarrage du service cron en premier plan..."
-# Démarrage de crond en mode foreground
-exec crond -f -l 2
+echo "En attente de déclenchement par Dokploy..."
+exec sleep infinity
