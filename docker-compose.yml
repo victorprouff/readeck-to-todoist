@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   readeck-todoist-sync:
     build: .
@@ -18,6 +16,9 @@ services:
     # volumes:
     #   - sync-logs:/var/log/readeck-sync
 
+networks:
+  dokploy-network:
+    external: true
 # Optionnel : volume nommé pour les logs
 # volumes:
 #   sync-logs:
