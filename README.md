@@ -2,6 +2,7 @@
 
 Script bash pour synchroniser automatiquement les articles non archivés avec le label "en vrac" de Readeck vers une section spécifique d'un projet Todoist.
 
+
 ## Prérequis
 
 - `curl` (généralement préinstallé)
