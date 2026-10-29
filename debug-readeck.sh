@@ -10,11 +10,18 @@ echo "=== DEBUG Readeck API ==="
 echo ""
 
 # Vérification des variables
+if [[ -z "${READECK_API_URL:-}" ]]; then
+    echo "❌ READECK_API_URL non défini"
+    exit 1
+fi
+READECK_API_URL="${READECK_API_URL%/}"
+
 if [[ -z "${READECK_API_TOKEN:-}" ]]; then
     echo "❌ READECK_API_TOKEN non défini"
     exit 1
 fi
 
+echo "✓ URL utilisée : ${READECK_API_URL}"
 echo "✓ Token défini (longueur: ${#READECK_API_TOKEN})"
 echo ""
 
@@ -23,7 +30,7 @@ echo "--- Test 1: Appel basique (limit=1) ---"
 response=$(curl -s -w "\n%{http_code}" \
     -H "Authorization: Bearer ${READECK_API_TOKEN}" \
     -H "Accept: application/json" \
-    "https://readeck.victorprouff.fr/api/bookmarks?limit=1")
+    "${READECK_API_URL}/bookmarks?limit=1")
 
 http_code=$(echo "$response" | tail -n1)
 body=$(echo "$response" | sed '$d')
@@ -40,7 +47,7 @@ echo "--- Test 2: Avec is_archived=false ---"
 response=$(curl -s -w "\n%{http_code}" \
     -H "Authorization: Bearer ${READECK_API_TOKEN}" \
     -H "Accept: application/json" \
-    "https://readeck.victorprouff.fr/api/bookmarks?is_archived=false&limit=1")
+    "${READECK_API_URL}/bookmarks?is_archived=false&limit=1")
 
 http_code=$(echo "$response" | tail -n1)
 body=$(echo "$response" | sed '$d')
@@ -57,7 +64,7 @@ echo "--- Test 3: Avec label 'en vrac' ---"
 response=$(curl -s -w "\n%{http_code}" \
     -H "Authorization: Bearer ${READECK_API_TOKEN}" \
     -H "Accept: application/json" \
-    "https://readeck.victorprouff.fr/api/bookmarks?labels=%22en+vrac%22&is_archived=false")
+    "${READECK_API_URL}/bookmarks?labels=%22en+vrac%22&is_archived=false")
 
 http_code=$(echo "$response" | tail -n1)
 body=$(echo "$response" | sed '$d')

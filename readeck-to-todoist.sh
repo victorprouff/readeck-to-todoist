@@ -72,6 +72,9 @@ check_env_vars() {
         log_error "Veuillez définir toutes les variables d'environnement requises"
         exit 1
     fi
+
+    # Supprime un éventuel slash final pour éviter les "//bookmarks"
+    READECK_API_URL="${READECK_API_URL%/}"
 }
 
 # Vérification des dépendances
@@ -95,7 +98,7 @@ check_dependencies() {
 
 # Récupération des articles depuis Readeck
 fetch_readeck_articles() {
-    log_info "Récupération des articles depuis Readeck..." >&2
+    log_info "Récupération des articles depuis Readeck (${READECK_API_URL})..." >&2
     
     local response
     response=$(curl -s -w "\n%{http_code}" \
