@@ -12,6 +12,8 @@ services:
     volumes:
       # Optionnel : persister les logs
       - ./logs:/var/log/readeck-sync
+    networks:
+      - dokploy-network
     # Optionnel : exposer les logs via un volume nommé
     # volumes:
     #   - sync-logs:/var/log/readeck-sync
