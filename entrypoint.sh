@@ -8,14 +8,6 @@ echo ""
 
 # Vérification des variables d'environnement
 echo "Vérification de la configuration..."
-if [[ -z "${READECK_API_URL}" ]]; then
-    echo "ERREUR: READECK_API_URL non défini"
-    exit 1
-fi
-if [[ -z "${READECK_API_TOKEN}" ]]; then
-    echo "ERREUR: READECK_API_TOKEN non défini"
-    exit 1
-fi
 if [[ -z "${TODOIST_API_TOKEN}" ]]; then
     echo "ERREUR: TODOIST_API_TOKEN non défini"
     exit 1
@@ -29,6 +21,12 @@ if [[ -z "${TODOIST_SECTION_ID}" ]]; then
     exit 1
 fi
 
+if [[ -n "${READECK_API_URL:-}" && -n "${READECK_API_TOKEN:-}" ]]; then
+    echo "✓ Source Readeck configurée"
+fi
+if [[ -n "${YOUTUBE_PLAYLIST_ID:-}" && -n "${YOUTUBE_REFRESH_TOKEN:-}" ]]; then
+    echo "✓ Source YouTube configurée"
+fi
 echo "✓ Configuration valide"
 echo ""
 
